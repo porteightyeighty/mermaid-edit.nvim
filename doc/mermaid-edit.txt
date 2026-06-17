@@ -34,6 +34,7 @@ Run `:checkhealth mermaid-edit`.
     require("mermaid-edit").setup({
       keymaps = {
         insert_step  = "<leader>mi",
+        add_step     = "<leader>mo",
         swap_down    = "<leader>mj",
         swap_up      = "<leader>mk",
         change_shape = "<leader>ms",
@@ -52,6 +53,11 @@ lazy.nvim, `opts = {}` calls setup for you.
 
 :MermaidInsertStep              Insert a new step between the two nodes on the
                                 edge under the cursor. Prompts for a label.
+
+:MermaidAddStep                 Add a step after the node under the cursor as a
+                                new outgoing edge. On a terminal node it extends
+                                the chain; on a node that already has a successor
+                                it forks off a new branch. Prompts for a label.
 
 :MermaidSwapDown                Swap the step on this line with the next step.
 
@@ -84,6 +90,7 @@ The commands always work regardless of the keymap configuration.
 Buffer-local in `mermaid` buffers (defaults):
 
   <leader>mi      :MermaidInsertStep
+  <leader>mo      :MermaidAddStep
   <leader>mj      :MermaidSwapDown
   <leader>mk      :MermaidSwapUp
   <leader>ms      :MermaidShape
@@ -102,8 +109,12 @@ Buffer-local in `mermaid` buffers (defaults):
   line, swap reorders in place and insert splices into the transition under the
   cursor; reshape reaches any vertex, including inside an `&` group. Subgraphs
   are out of scope.
-- Write parseable mermaid: use `<br>`, not `<br/>`. The self-closing slash makes
-  the grammar error, and mermaid-edit refuses to edit a tree with errors. `<br>`
-  renders identically.
+- Write parseable mermaid. A few constructs are valid mermaid that the grammar
+  still errors on, and mermaid-edit refuses to edit a tree with errors:
+  - Use `<br>`, not `<br/>` (the self-closing slash makes the grammar error;
+    `<br>` renders identically).
+  - Use the dotted arrow `-.->`, not the dotted open link `-.-` (the grammar
+    can't parse `-.-`, so the arrow picker omits it). Fix an existing `-.-` to
+    `-.->` by hand once and editing works again.
 
 vim:tw=78:ts=8:ft=help:norl:

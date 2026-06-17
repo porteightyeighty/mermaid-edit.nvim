@@ -63,7 +63,10 @@ local function parse(buf)
 	local tree = parser:parse()[1]
 	local root = tree:root()
 	if root:has_error() and not only_blank_errors(root, buf) then
-		warn("the diagram has a parse error - check for a `<br/>` (use `<br>`) or other invalid syntax")
+		warn(
+			"the diagram has a parse error - check for a `<br/>` (use `<br>`) or a dotted-open `-.-` link "
+				.. "(use `-.->`); both are valid mermaid but the grammar can't parse them"
+		)
 		return nil
 	end
 	return root
@@ -489,6 +492,67 @@ function M.insert_between(buf, row, label, opts, col)
 	local line1 = string.format("%s%s %s %s%s%s%s", stmt.indent, stmt.src_text, stmt.arrow, new_id, open, label, close)
 	local line2 = string.format("%s%s %s %s", stmt.indent, new_id, stmt.arrow, stmt.tgt_text)
 	vim.api.nvim_buf_set_lines(buf, row, row + 1, false, { line1, line2 })
+	return new_id
+end
+
+-- Append a new step after the node under the cursor as a new outgoing edge on a
+-- fresh line below `row`:
+--
+--   NODE <arrow> NEW<shape>label<close>
+--
+-- Most useful on a terminal (last) node, which has no edge to insert a step
+-- "between", but it works on any node - adding an out-edge to a node that
+-- already has one creates a fan-out. The arrow reuses the style of the node's
+-- incoming edge when it has one (so a dotted/thick chain stays consistent),
+-- else `-->`; the new node takes opts.default_shape. Returns the new id, or nil.
+function M.add_after(buf, row, col, label, opts)
+	opts = opts or {}
+	if not label or label == "" then
+		return nil
+	end
+	local root = parse(buf)
+	if not root then
+		return nil
+	end
+	-- The id of the node under the cursor: the enclosing flow_vertex if the cursor
+	-- sits on one, else the nearest vertex on the line (cursor on the arrow or
+	-- trailing space resolves to the preceding node).
+	col = col or 0
+	local id
+	local node = root:named_descendant_for_range(row, col, row, col)
+	while node and node:type() ~= "flow_vertex" do
+		node = node:parent()
+	end
+	if node then
+		id = node_id(node, buf)
+	end
+	if not id then
+		local stmt_node = stmt_at_row(root, buf, row)
+		if stmt_node then
+			local parts = group_parts(stmt_node, buf)
+			local gi, vi = locate(parts, col)
+			id = parts.groups[gi] and parts.groups[gi][vi] and parts.groups[gi][vi].id
+		end
+	end
+	if not id then
+		warn("place the cursor on a node to add a step after it")
+		return nil
+	end
+
+	local stmts = collect_stmts(buf, root)
+	local arrow = "-->"
+	for _, s in ipairs(stmts) do
+		if s.tgt_id == id then
+			arrow = s.arrow
+			break
+		end
+	end
+	local sh = shapes.by_name(opts.default_shape or "square") or shapes.by_name("square")
+	local new_id = unique_id(slugify(label), all_ids(root, buf))
+	local line = vim.api.nvim_buf_get_lines(buf, row, row + 1, false)[1] or ""
+	local indent = line:match("^%s*") or ""
+	local new_line = string.format("%s%s %s %s%s%s%s", indent, id, arrow, new_id, sh.open, label, sh.close)
+	vim.api.nvim_buf_set_lines(buf, row + 1, row + 1, false, { new_line })
 	return new_id
 end
 

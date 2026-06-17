@@ -84,6 +84,57 @@ do
 end
 
 ----------------------------------------------------------------------
+-- add_after: append a new terminal step after the last node
+----------------------------------------------------------------------
+do
+	local buf = fixture() -- start->a, a->b, b->done
+	local line = vim.api.nvim_buf_get_lines(buf, 3, 4, false)[1]
+	local col = line:find("done") - 1
+	local new_id = core.add_after(buf, 3, col, "Wrap up", { default_shape = "square" })
+	local lines = get_lines(buf)
+	check("add-after: returns slugified id", new_id == "wrap_up", "got " .. tostring(new_id))
+	check("add-after: appended after the last node", lines[5] == "  done --> wrap_up[Wrap up]", "got: " .. tostring(lines[5]))
+	check("add-after: existing last line untouched", lines[4] == "  b --> done([Done])", "got: " .. lines[4])
+	check("add-after: still parses clean", parses_clean(buf))
+end
+
+----------------------------------------------------------------------
+-- add_after: reuses the node's incoming arrow style
+----------------------------------------------------------------------
+do
+	local buf = make_buf({
+		"flowchart LR",
+		"  a -.-> b[B]",
+	})
+	local line = vim.api.nvim_buf_get_lines(buf, 1, 2, false)[1]
+	local col = line:find("b%[B%]") - 1
+	core.add_after(buf, 1, col, "Next", {})
+	local lines = get_lines(buf)
+	check("add-after: reuses incoming arrow style", lines[3] == "  b -.-> next[Next]", "got: " .. tostring(lines[3]))
+	check("add-after: dotted append parses clean", parses_clean(buf))
+end
+
+----------------------------------------------------------------------
+-- add_after: on a node that already has a successor creates a fan-out
+-- branch (a new dangling step, not auto-linked downstream)
+----------------------------------------------------------------------
+do
+	local buf = make_buf({
+		"flowchart LR",
+		"  a --> b[B]",
+		"  b --> c[C]",
+	})
+	local line = vim.api.nvim_buf_get_lines(buf, 1, 2, false)[1]
+	local col = line:find("a") - 1
+	local new_id = core.add_after(buf, 1, col, "Side", { default_shape = "square" })
+	local lines = get_lines(buf)
+	check("add-after: returns id for the branch", new_id == "side", "got " .. tostring(new_id))
+	check("add-after: forks from a node with an existing edge", lines[3] == "  a --> side[Side]", "got: " .. tostring(lines[3]))
+	check("add-after: original successor edge intact", lines[4] == "  b --> c[C]", "got: " .. tostring(lines[4]))
+	check("add-after: branch parses clean", parses_clean(buf))
+end
+
+----------------------------------------------------------------------
 -- swap_down: reorders two steps, keeps the chain connected
 ----------------------------------------------------------------------
 do
@@ -625,6 +676,26 @@ do
 	check("edge_label: returns an existing label", core.edge_label(buf, 1, 0) == "yes")
 	check("edge_label: empty string for an unlabelled edge", core.edge_label(buf, 2, 0) == "")
 	check("edge_label: nil when there is no edge on the line", core.edge_label(buf, 0, 0) == nil)
+end
+
+----------------------------------------------------------------------
+-- every offered arrow style must parse (plain and labelled), and applying
+-- it via change_arrow must leave a clean tree. Guards against re-introducing
+-- a grammar-breaking style like the dotted-open `-.-`.
+----------------------------------------------------------------------
+do
+	local arrows = require("mermaid-edit.arrows")
+	check("arrows: dotted-open `-.-` is not offered", arrows.by_name("Dotted open") == nil)
+	for _, a in ipairs(arrows.list) do
+		local buf = make_buf({ "flowchart LR", "  a[A] --> b[B]" })
+		local okk = core.change_arrow(buf, 1, 0, a.arrow)
+		local lines = get_lines(buf)
+		check(
+			"arrows: '" .. a.name .. "' (" .. a.arrow .. ") applies cleanly",
+			okk == true and parses_clean(buf) and lines[2] == "  a[A] " .. a.arrow .. " b[B]",
+			"got: " .. lines[2]
+		)
+	end
 end
 
 ----------------------------------------------------------------------

@@ -17,6 +17,7 @@ local defaults = {
 	-- work regardless).
 	keymaps = {
 		insert_step = "<leader>mi",
+		add_step = "<leader>mo",
 		swap_down = "<leader>mj",
 		swap_up = "<leader>mk",
 		change_shape = "<leader>ms",
@@ -58,6 +59,17 @@ function M.insert_step()
 			return
 		end
 		core.insert_between(buf, row, label, { default_shape = M.get_config().default_shape }, col)
+	end)
+end
+
+function M.add_step()
+	local buf = vim.api.nvim_get_current_buf()
+	local row, col = cursor_pos()
+	vim.ui.input({ prompt = "New step label: " }, function(label)
+		if not label or label == "" then
+			return
+		end
+		core.add_after(buf, row, col, label, { default_shape = M.get_config().default_shape })
 	end)
 end
 

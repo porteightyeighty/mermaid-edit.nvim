@@ -9,6 +9,7 @@ end
 
 local actions = {
 	insert_step = { fn = me.insert_step, desc = "Mermaid: insert step" },
+	add_step = { fn = me.add_step, desc = "Mermaid: add step after node" },
 	swap_down = { fn = me.swap_down, desc = "Mermaid: move step down" },
 	swap_up = { fn = me.swap_up, desc = "Mermaid: move step up" },
 	change_shape = { fn = me.change_shape, desc = "Mermaid: change shape" },

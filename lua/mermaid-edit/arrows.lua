@@ -5,11 +5,15 @@
 
 local M = {}
 
+-- Only styles the tree-sitter-mermaid grammar can parse are offered: the editor
+-- gates every operation on a clean parse, so an arrow the grammar errors on
+-- would produce a diagram the plugin could no longer edit. The dotted *open*
+-- link `-.-` is the notable casualty - mermaid.js renders it, but the grammar
+-- treats it as an error, so it is deliberately absent (use `-.->` for dotted).
 M.list = {
 	{ name = "Arrow", arrow = "-->" },
 	{ name = "Open link", arrow = "---" },
 	{ name = "Dotted arrow", arrow = "-.->" },
-	{ name = "Dotted open", arrow = "-.-" },
 	{ name = "Thick arrow", arrow = "==>" },
 	{ name = "Thick open", arrow = "===" },
 	{ name = "Circle edge", arrow = "--o" },

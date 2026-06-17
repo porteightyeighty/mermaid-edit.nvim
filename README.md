@@ -55,6 +55,7 @@ Put the cursor on an edge line (`SRC --> TGT[label]`) and:
 | Default map   | Command              | Action                                        |
 |---------------|----------------------|-----------------------------------------------|
 | `<leader>mi`  | `:MermaidInsertStep` | Insert a new step between the two nodes        |
+| `<leader>mo`  | `:MermaidAddStep`    | Add a step after the node under the cursor (a new branch) |
 | `<leader>mj`  | `:MermaidSwapDown`   | Swap this step with the next one               |
 | `<leader>mk`  | `:MermaidSwapUp`     | Swap this step with the previous one           |
 | `<leader>ms`  | `:MermaidShape`      | Change the shape of the node under the cursor  |
@@ -64,6 +65,10 @@ Put the cursor on an edge line (`SRC --> TGT[label]`) and:
 
 - **Insert** prompts for a label, derives a unique snake_case id, and gives the
   new node the same shape as the edge's target.
+- **Add step** appends a new node after the node under the cursor as a fresh
+  outgoing edge. On a terminal node it extends the chain; on a node that already
+  has a successor it forks off a new branch that does not auto-connect to
+  anything downstream. The arrow reuses the node's incoming style.
 - **Swap** trades the positions of two adjacent steps by transposing their ids
   across the whole diagram, so every edge into or out of either node follows it
   and the chain stays connected - including fan-in and fan-out. Each node keeps
@@ -87,6 +92,7 @@ Put the cursor on an edge line (`SRC --> TGT[label]`) and:
 require("mermaid-edit").setup({
   keymaps = {                  -- buffer-local; set an entry or the table to false to disable
     insert_step  = "<leader>mi",
+    add_step     = "<leader>mo",
     swap_down    = "<leader>mj",
     swap_up      = "<leader>mk",
     change_shape = "<leader>ms",
@@ -112,10 +118,14 @@ The `:Mermaid*` commands always work regardless of keymaps.
   place (an `&` sibling, else the adjacent group) and insert splices a node into
   the transition under the cursor. Reshaping reaches any vertex, including one
   inside an `&` group. **Subgraphs** remain out of scope.
-- **Write parseable mermaid.** Use `<br>`, not `<br/>` - the self-closing slash
-  makes the grammar error (it collides with slanted-shape closers like `/]`),
-  and `mermaid-edit` refuses to edit a tree with errors. `<br>` renders
-  identically.
+- **Write parseable mermaid.** A few constructs are valid mermaid that the
+  tree-sitter grammar still errors on, and `mermaid-edit` refuses to edit a tree
+  with errors:
+  - Use `<br>`, not `<br/>` - the self-closing slash collides with slanted-shape
+    closers like `/]`. `<br>` renders identically.
+  - Use the dotted *arrow* `-.->`, not the dotted *open* link `-.-` - the grammar
+    can't parse `-.-`, so the arrow picker omits it. If a diagram already
+    contains a `-.-`, change it to `-.->` by hand once and editing works again.
 
 ## License
 

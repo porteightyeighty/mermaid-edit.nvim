@@ -12,6 +12,7 @@ local function cmd(name, fn, desc)
 end
 
 cmd("MermaidInsertStep", "insert_step", "Insert a step between the two nodes on this edge")
+cmd("MermaidAddStep", "add_step", "Add a step after the node under the cursor (a new branch)")
 cmd("MermaidSwapDown", "swap_down", "Swap this step with the next one")
 cmd("MermaidSwapUp", "swap_up", "Swap this step with the previous one")
 cmd("MermaidShape", "change_shape", "Change the shape of the node under the cursor")
