@@ -1,0 +1,96 @@
+*mermaid-edit.txt*    Treesitter-assisted structural edits for mermaid flowcharts
+
+==============================================================================
+CONTENTS                                                  *mermaid-edit-contents*
+
+  1. Introduction ......................... |mermaid-edit-introduction|
+  2. Requirements ......................... |mermaid-edit-requirements|
+  3. Setup ................................ |mermaid-edit-setup|
+  4. Commands ............................. |mermaid-edit-commands|
+  5. Mappings ............................. |mermaid-edit-mappings|
+  6. Limitations .......................... |mermaid-edit-limitations|
+
+==============================================================================
+1. INTRODUCTION                                       *mermaid-edit-introduction*
+
+mermaid-edit.nvim performs structural edits on mermaid flowcharts using the
+tree-sitter parse tree: insert a step between two nodes, swap adjacent steps,
+and change a node's shape. It rewrites the shared node ids that connect a linear
+chart so the chain stays intact.
+
+==============================================================================
+2. REQUIREMENTS                                       *mermaid-edit-requirements*
+
+- Neovim 0.10+
+- The `mermaid` tree-sitter parser (e.g. `:TSInstall mermaid`).
+
+Run `:checkhealth mermaid-edit`.
+
+==============================================================================
+3. SETUP                                                     *mermaid-edit-setup*
+
+                                                          *mermaid-edit.setup()*
+>lua
+    require("mermaid-edit").setup({
+      keymaps = {
+        insert_step  = "<leader>mi",
+        swap_down    = "<leader>mj",
+        swap_up      = "<leader>mk",
+        change_shape = "<leader>ms",
+        remove_node  = "<leader>md",
+      },
+      default_shape = "square",
+    })
+<
+Set any keymap entry, or `keymaps` itself, to `false` to disable. With
+lazy.nvim, `opts = {}` calls setup for you.
+
+==============================================================================
+4. COMMANDS                                               *mermaid-edit-commands*
+
+:MermaidInsertStep              Insert a new step between the two nodes on the
+                                edge under the cursor. Prompts for a label.
+
+:MermaidSwapDown                Swap the step on this line with the next step.
+
+:MermaidSwapUp                  Swap the step on this line with the previous
+                                step.
+
+:MermaidShape                   Change the shape of the node under the cursor
+                                (pick from a list).
+
+:MermaidRemove                  Remove the node under the cursor and bridge the
+                                gap: each predecessor is reconnected to each
+                                successor so the chain stays connected. On a
+                                one-liner or `&` branch the node is spliced out
+                                in place.
+
+The commands always work regardless of the keymap configuration.
+
+==============================================================================
+5. MAPPINGS                                               *mermaid-edit-mappings*
+
+Buffer-local in `mermaid` buffers (defaults):
+
+  <leader>mi      :MermaidInsertStep
+  <leader>mj      :MermaidSwapDown
+  <leader>mk      :MermaidSwapUp
+  <leader>ms      :MermaidShape
+  <leader>md      :MermaidRemove
+
+==============================================================================
+6. LIMITATIONS                                         *mermaid-edit-limitations*
+
+- All flowchart connectivity is handled: one edge per line
+  (`SRC <arrow> TGT[label]`), chained one-liners (`A --> B --> C`), and `&`
+  branching - fan-out (`A --> B & C`) and fan-in (`A & B --> C`). Multi-line
+  branches stay connected through a swap because the diagram is re-threaded by id
+  and the connecting edge is located by id, not adjacency. On a one-liner or `&`
+  line, swap reorders in place and insert splices into the transition under the
+  cursor; reshape reaches any vertex, including inside an `&` group. Subgraphs
+  are out of scope.
+- Write parseable mermaid: use `<br>`, not `<br/>`. The self-closing slash makes
+  the grammar error, and mermaid-edit refuses to edit a tree with errors. `<br>`
+  renders identically.
+
+vim:tw=78:ts=8:ft=help:norl:
