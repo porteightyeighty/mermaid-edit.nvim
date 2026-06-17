@@ -15,8 +15,8 @@ CONTENTS                                                  *mermaid-edit-contents
 
 mermaid-edit.nvim performs structural edits on mermaid flowcharts using the
 tree-sitter parse tree: insert a step between two nodes, swap adjacent steps,
-and change a node's shape. It rewrites the shared node ids that connect a linear
-chart so the chain stays intact.
+change a node's shape, restyle an edge, and label edges. It rewrites the shared
+node ids that connect a linear chart so the chain stays intact.
 
 ==============================================================================
 2. REQUIREMENTS                                       *mermaid-edit-requirements*
@@ -37,6 +37,8 @@ Run `:checkhealth mermaid-edit`.
         swap_down    = "<leader>mj",
         swap_up      = "<leader>mk",
         change_shape = "<leader>ms",
+        change_arrow = "<leader>ma",
+        edit_label   = "<leader>ml",
         remove_node  = "<leader>md",
       },
       default_shape = "square",
@@ -59,6 +61,15 @@ lazy.nvim, `opts = {}` calls setup for you.
 :MermaidShape                   Change the shape of the node under the cursor
                                 (pick from a list).
 
+:MermaidArrow                   Change the arrow style of the edge under the
+                                cursor (pick from a list, e.g. -->, ---, -.->,
+                                ==>, --o, --x). Any edge label is kept.
+
+:MermaidLabel                   Add, edit, or remove the label on the edge under
+                                the cursor (`A -->|label| B`). The prompt is
+                                prefilled with the current label; submitting an
+                                empty label removes it.
+
 :MermaidRemove                  Remove the node under the cursor and bridge the
                                 gap: each predecessor is reconnected to each
                                 successor so the chain stays connected. On a
@@ -76,6 +87,8 @@ Buffer-local in `mermaid` buffers (defaults):
   <leader>mj      :MermaidSwapDown
   <leader>mk      :MermaidSwapUp
   <leader>ms      :MermaidShape
+  <leader>ma      :MermaidArrow
+  <leader>ml      :MermaidLabel
   <leader>md      :MermaidRemove
 
 ==============================================================================

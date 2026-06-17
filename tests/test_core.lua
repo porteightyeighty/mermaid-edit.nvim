@@ -529,6 +529,105 @@ do
 end
 
 ----------------------------------------------------------------------
+-- change_arrow: restyle a plain edge, preserving the operands
+----------------------------------------------------------------------
+do
+	local buf = make_buf({
+		"flowchart LR",
+		"  a[A] --> b[B]",
+	})
+	local okk = core.change_arrow(buf, 1, 0, "-.->")
+	local lines = get_lines(buf)
+	check("arrow: returns true", okk == true)
+	check("arrow: plain edge restyled", lines[2] == "  a[A] -.-> b[B]", "got: " .. lines[2])
+	check("arrow: still parses clean", parses_clean(buf))
+end
+
+----------------------------------------------------------------------
+-- change_arrow: a labelled edge keeps its label
+----------------------------------------------------------------------
+do
+	local buf = make_buf({
+		"flowchart LR",
+		"  a --> |yes| b",
+	})
+	core.change_arrow(buf, 1, 0, "==>")
+	local lines = get_lines(buf)
+	check("arrow: label preserved across restyle", lines[2] == "  a ==>|yes| b", "got: " .. lines[2])
+	check("arrow: labelled restyle parses clean", parses_clean(buf))
+end
+
+----------------------------------------------------------------------
+-- change_arrow: targets the transition under the cursor in a one-liner
+----------------------------------------------------------------------
+do
+	local buf = make_buf({
+		"flowchart LR",
+		"  a[A] --> b[B] --> c[C]",
+	})
+	local line = vim.api.nvim_buf_get_lines(buf, 1, 2, false)[1]
+	-- column on the SECOND arrow (between b and c)
+	local first = line:find("%-%->")
+	local col = line:find("%-%->", first + 1) - 1
+	core.change_arrow(buf, 1, col, "-.->")
+	local lines = get_lines(buf)
+	check("arrow: one-liner restyles only the targeted link", lines[2] == "  a[A] --> b[B] -.-> c[C]", "got: " .. lines[2])
+	check("arrow: one-liner restyle parses clean", parses_clean(buf))
+end
+
+----------------------------------------------------------------------
+-- set_label: add, edit, and remove a label on a plain edge
+----------------------------------------------------------------------
+do
+	local buf = make_buf({
+		"flowchart LR",
+		"  a --> b",
+	})
+	local okk = core.set_label(buf, 1, 0, "yes")
+	local lines = get_lines(buf)
+	check("label: returns true", okk == true)
+	check("label: added to a bare edge", lines[2] == "  a -->|yes| b", "got: " .. lines[2])
+	check("label: add parses clean", parses_clean(buf))
+
+	core.set_label(buf, 1, 0, "no")
+	lines = get_lines(buf)
+	check("label: edited in place", lines[2] == "  a -->|no| b", "got: " .. lines[2])
+
+	core.set_label(buf, 1, 0, "")
+	lines = get_lines(buf)
+	check("label: empty input removes it", lines[2] == "  a --> b", "got: " .. lines[2])
+	check("label: removal parses clean", parses_clean(buf))
+end
+
+----------------------------------------------------------------------
+-- set_label: a mid-text label is normalised to the pipe form
+----------------------------------------------------------------------
+do
+	local buf = make_buf({
+		"flowchart LR",
+		"  a -- yes --> b",
+	})
+	core.set_label(buf, 1, 0, "no")
+	local lines = get_lines(buf)
+	check("label: mid-text normalised to pipe form", lines[2] == "  a -->|no| b", "got: " .. lines[2])
+	check("label: normalised label parses clean", parses_clean(buf))
+end
+
+----------------------------------------------------------------------
+-- edge_label: reports the current label for prefilling a prompt
+----------------------------------------------------------------------
+do
+	local buf = make_buf({
+		"flowchart LR",
+		"  a -->|yes| b",
+		"  b --> c",
+	})
+	check("edge_label: returns an existing label", core.edge_label(buf, 1, 0) == "yes")
+	check("edge_label: empty string for an unlabelled edge", core.edge_label(buf, 2, 0) == "")
+	check("edge_label: nil when there is no edge on the line", core.edge_label(buf, 0, 0) == nil)
+end
+
+----------------------------------------------------------------------
 print(string.rep("-", 50))
 if failures == 0 then
 	print("ALL TESTS PASSED")

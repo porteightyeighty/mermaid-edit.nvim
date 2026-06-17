@@ -15,4 +15,6 @@ cmd("MermaidInsertStep", "insert_step", "Insert a step between the two nodes on 
 cmd("MermaidSwapDown", "swap_down", "Swap this step with the next one")
 cmd("MermaidSwapUp", "swap_up", "Swap this step with the previous one")
 cmd("MermaidShape", "change_shape", "Change the shape of the node under the cursor")
+cmd("MermaidArrow", "change_arrow", "Change the arrow style of the edge under the cursor")
+cmd("MermaidLabel", "edit_label", "Add, edit, or remove the label on the edge under the cursor")
 cmd("MermaidRemove", "remove_node", "Remove the node under the cursor and bridge the gap")

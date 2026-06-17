@@ -743,6 +743,105 @@ function M.change_shape(buf, pos, shape_name)
 	return true
 end
 
+-- The flow_link_* node (the arrow joining two nodes) on `row` nearest the
+-- cursor `col`: one that contains the column wins, otherwise the closest by
+-- distance. A plain edge has exactly one link; a chained one-liner has several,
+-- so the column disambiguates which transition the operation targets.
+local function link_at_cursor(root, buf, row, col)
+	col = col or 0
+	local stmt = stmt_at_row(root, buf, row)
+	if not stmt then
+		return nil
+	end
+	local best, best_dist
+	for child in stmt:iter_children() do
+		if child:type():find("^flow_link") then
+			local _, scol, _, ecol = child:range()
+			if col >= scol and col < ecol then
+				return child
+			end
+			local dist = (col < scol) and (scol - col) or (col - ecol + 1)
+			if not best_dist or dist < best_dist then
+				best, best_dist = child, dist
+			end
+		end
+	end
+	return best
+end
+
+-- The arrow token of a link node (its flow_link_arrow), e.g. `-->`. For a
+-- mid-text link (`-- x -->`) this is the head arrow, so reconstructing into the
+-- pipe form drops the redundant `--` start.
+local function link_arrow_text(link, buf)
+	local a = find_descendant(link, "flow_link_arrow")
+	return a and vim.treesitter.get_node_text(a, buf) or vim.treesitter.get_node_text(link, buf)
+end
+
+-- The edge label of a link node (its flow_arrow_text), or nil when unlabelled.
+local function link_label_text(link, buf)
+	for child in link:iter_children() do
+		if child:type() == "flow_arrow_text" then
+			return vim.treesitter.get_node_text(child, buf)
+		end
+	end
+	return nil
+end
+
+-- Replace a link node's range with `arrow` plus, when non-empty, a `|label|`.
+-- The node range excludes the surrounding spaces, so the operands are untouched.
+local function write_link(buf, link, arrow, label)
+	local text = (label and label ~= "") and (arrow .. "|" .. label .. "|") or arrow
+	local sr, sc, er, ec = link:range()
+	vim.api.nvim_buf_set_text(buf, sr, sc, er, ec, { text })
+end
+
+-- Change the arrow style of the edge under the cursor to `arrow`, keeping any
+-- edge label. Works on any transition of a chained one-liner via `col`.
+function M.change_arrow(buf, row, col, arrow)
+	local root = parse(buf)
+	if not root then
+		return false
+	end
+	local link = link_at_cursor(root, buf, row, col)
+	if not link then
+		warn("place the cursor on an edge to change its arrow")
+		return false
+	end
+	write_link(buf, link, arrow, link_label_text(link, buf))
+	return true
+end
+
+-- Set (or, with an empty/nil label, remove) the label on the edge under the
+-- cursor, keeping its arrow style. A mid-text label is normalised to the pipe
+-- form. Works on any transition of a chained one-liner via `col`.
+function M.set_label(buf, row, col, label)
+	local root = parse(buf)
+	if not root then
+		return false
+	end
+	local link = link_at_cursor(root, buf, row, col)
+	if not link then
+		warn("place the cursor on an edge to label it")
+		return false
+	end
+	write_link(buf, link, link_arrow_text(link, buf), label)
+	return true
+end
+
+-- The current label of the edge under the cursor ("" for an unlabelled edge),
+-- or nil when there is no edge there. Lets a caller prefill the prompt.
+function M.edge_label(buf, row, col)
+	local root = parse(buf)
+	if not root then
+		return nil
+	end
+	local link = link_at_cursor(root, buf, row, col)
+	if not link then
+		return nil
+	end
+	return link_label_text(link, buf) or ""
+end
+
 -- Exposed for tests / advanced use.
 M._collect_stmts = collect_stmts
 M._parse = parse

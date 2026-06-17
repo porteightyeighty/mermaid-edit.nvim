@@ -6,6 +6,7 @@
 
 local core = require("mermaid-edit.core")
 local shapes = require("mermaid-edit.shapes")
+local arrows = require("mermaid-edit.arrows")
 
 local M = {}
 
@@ -19,6 +20,8 @@ local defaults = {
 		swap_down = "<leader>mj",
 		swap_up = "<leader>mk",
 		change_shape = "<leader>ms",
+		change_arrow = "<leader>ma",
+		edit_label = "<leader>ml",
 		remove_node = "<leader>md",
 	},
 	-- Shape used for a newly inserted node when the edge's target is a bare id.
@@ -82,6 +85,38 @@ function M.change_shape()
 			return
 		end
 		core.change_shape(buf, pos, choice)
+	end)
+end
+
+function M.change_arrow()
+	local buf = vim.api.nvim_get_current_buf()
+	local row, col = cursor_pos()
+	vim.ui.select(arrows.list, {
+		prompt = "Arrow style:",
+		format_item = function(item)
+			return string.format("%-14s %s", item.name, item.arrow)
+		end,
+	}, function(choice)
+		if not choice then
+			return
+		end
+		core.change_arrow(buf, row, col, choice.arrow)
+	end)
+end
+
+function M.edit_label()
+	local buf = vim.api.nvim_get_current_buf()
+	local row, col = cursor_pos()
+	local current = core.edge_label(buf, row, col)
+	if current == nil then
+		core.set_label(buf, row, col, "") -- triggers the "no edge here" notice
+		return
+	end
+	vim.ui.input({ prompt = "Edge label (empty to remove): ", default = current }, function(label)
+		if label == nil then
+			return
+		end
+		core.set_label(buf, row, col, label)
 	end)
 end
 

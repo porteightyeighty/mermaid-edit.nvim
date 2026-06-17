@@ -1,0 +1,37 @@
+name: Generate vimdoc
+
+# Regenerate doc/mermaid-edit.txt from README.md whenever the README (or this
+# workflow) changes on main, and commit the result back. README.md is the single
+# source of truth; the help file is generated, not hand-edited.
+on:
+  push:
+    branches: [main]
+    paths:
+      - README.md
+      - .github/workflows/panvimdoc.yml
+
+permissions:
+  contents: write
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate help with panvimdoc
+        uses: kdheepak/panvimdoc@main
+        with:
+          vimdoc: mermaid-edit # -> doc/mermaid-edit.txt, :help mermaid-edit
+          version: "Neovim >= 0.10"
+          titledatepattern: "%Y %B %d"
+          demojify: true
+          treesitter: true
+
+      - name: Commit generated doc
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add doc/
+          git diff --quiet --staged || git commit -m "docs: auto-generate vimdoc from README"
+          git push

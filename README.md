@@ -1,9 +1,9 @@
 # mermaid-edit.nvim
 
 Treesitter-assisted structural edits for [mermaid](https://mermaid.js.org/)
-flowcharts in Neovim. Insert a step between two nodes, swap adjacent steps, and
-change a node's shape - without hand-rewriting the shared node ids that hold a
-linear chart together.
+flowcharts in Neovim. Insert a step between two nodes, swap adjacent steps,
+change a node's shape, restyle an edge, and label edges - without hand-rewriting
+the shared node ids that hold a linear chart together.
 
 Other mermaid plugins render, preview, or lint. This one *edits structure*.
 
@@ -58,6 +58,8 @@ Put the cursor on an edge line (`SRC --> TGT[label]`) and:
 | `<leader>mj`  | `:MermaidSwapDown`   | Swap this step with the next one               |
 | `<leader>mk`  | `:MermaidSwapUp`     | Swap this step with the previous one           |
 | `<leader>ms`  | `:MermaidShape`      | Change the shape of the node under the cursor  |
+| `<leader>ma`  | `:MermaidArrow`      | Change the arrow style of the edge under the cursor |
+| `<leader>ml`  | `:MermaidLabel`      | Add, edit, or remove the edge's label          |
 | `<leader>md`  | `:MermaidRemove`     | Remove the node under the cursor, bridge the gap |
 
 - **Insert** prompts for a label, derives a unique snake_case id, and gives the
@@ -68,6 +70,12 @@ Put the cursor on an edge line (`SRC --> TGT[label]`) and:
   its own label.
 - **Change shape** rewraps the label in a shape you pick, leaving the label text
   (including `<br>`) untouched.
+- **Change arrow** restyles the edge under the cursor (`-->`, `---`, `-.->`,
+  `==>`, `--o`, `--x`, `<-->`, ...) from a picker, keeping any edge label.
+- **Edit label** adds or changes the edge's label (`A -->|label| B`); submitting
+  an empty label removes it. A `-- label -->` mid-edge label is normalised to the
+  `|label|` form. On a chained one-liner both arrow and label operations act on
+  the transition under the cursor.
 - **Remove** deletes the node under the cursor and bridges the gap: each
   predecessor is reconnected to each successor (`P --> X --> Q` becomes
   `P --> Q`), so the chain stays connected. On a one-liner or `&` branch the
@@ -82,6 +90,8 @@ require("mermaid-edit").setup({
     swap_down    = "<leader>mj",
     swap_up      = "<leader>mk",
     change_shape = "<leader>ms",
+    change_arrow = "<leader>ma",
+    edit_label   = "<leader>ml",
     remove_node  = "<leader>md",
   },
   default_shape = "square",     -- shape for a new node when the edge target is a bare id
