@@ -1,4 +1,10 @@
--- Buffer-local keymaps for mermaid buffers, derived from the resolved config.
+-- Buffer-local default keymaps for mermaid buffers.
+--
+-- Keys map to the <Plug>(mermaid-*) handles defined in plugin/mermaid-edit.lua,
+-- so they are easy to override: set `keymaps` (or a single entry) to false in
+-- setup() and map the <Plug> handles yourself, or just shadow a key in your own
+-- after/ftplugin/mermaid.lua. We also skip any key the user has already mapped,
+-- so an existing mapping always wins.
 
 local me = require("mermaid-edit")
 local keymaps = me.get_config().keymaps
@@ -7,20 +13,20 @@ if keymaps == false then
 	return
 end
 
-local actions = {
-	insert_step = { fn = me.insert_step, desc = "Mermaid: insert step" },
-	add_step = { fn = me.add_step, desc = "Mermaid: add step after node" },
-	swap_down = { fn = me.swap_down, desc = "Mermaid: move step down" },
-	swap_up = { fn = me.swap_up, desc = "Mermaid: move step up" },
-	change_shape = { fn = me.change_shape, desc = "Mermaid: change shape" },
-	change_arrow = { fn = me.change_arrow, desc = "Mermaid: change arrow style" },
-	edit_label = { fn = me.edit_label, desc = "Mermaid: edit edge label" },
-	remove_node = { fn = me.remove_node, desc = "Mermaid: remove node" },
-}
+local buf = vim.api.nvim_get_current_buf()
+-- The buffer's diagram kind lets us show a single, clean label per key instead
+-- of the dual flowchart/erDiagram description the global command must carry.
+local er_kind = require("mermaid-edit.er.core").diagram_type(buf) == "er"
 
-for action, spec in pairs(actions) do
-	local lhs = keymaps[action]
-	if lhs then
-		vim.keymap.set("n", lhs, spec.fn, { buffer = true, silent = true, desc = spec.desc })
+for _, a in ipairs(me._actions) do
+	local lhs = keymaps[a.fn]
+	-- An action with no flowchart meaning (er-only) is skipped in flowcharts.
+	local label = er_kind and a.er or a.flow
+	if lhs and label and vim.fn.maparg(lhs, "n") == "" then
+		vim.keymap.set("n", lhs, "<Plug>(" .. a.plug .. ")", {
+			buffer = buf,
+			silent = true,
+			desc = "Mermaid: " .. label,
+		})
 	end
 end
