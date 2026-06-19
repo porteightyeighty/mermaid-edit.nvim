@@ -41,16 +41,10 @@ With [lazy.nvim](https://github.com/folke/lazy.nvim):
 
 ```lua
 {
-  "matthewport/mermaid-edit.nvim",
+  "porteightyeighty/mermaid-edit.nvim",
   ft = "mermaid",
   opts = {},
 }
-```
-
-Developing locally? Point lazy at the checkout:
-
-```lua
-{ dir = "~/dev/mermaid-edit.nvim", ft = "mermaid", opts = {} }
 ```
 
 ## Usage
