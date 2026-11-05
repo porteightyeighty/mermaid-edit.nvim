@@ -2,7 +2,8 @@
 -- Run with: nvim --headless -l tests/test_core.lua  (from the repo root)
 -- Exits non-zero if any assertion fails.
 
-vim.opt.runtimepath:append(vim.fn.expand("~/dev/mermaid-edit.nvim"))
+-- Load the plugin from this checkout (the directory above tests/).
+vim.opt.runtimepath:append(vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":p:h:h"))
 
 local core = require("mermaid-edit.core")
 

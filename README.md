@@ -1,5 +1,7 @@
 # mermaid-edit.nvim
 
+[![Test](https://github.com/porteightyeighty/mermaid-edit.nvim/actions/workflows/test.yml/badge.svg)](https://github.com/porteightyeighty/mermaid-edit.nvim/actions/workflows/test.yml)
+
 Treesitter-assisted structural edits for [mermaid](https://mermaid.js.org/)
 **flowcharts** and **erDiagrams** in Neovim. On a flowchart: insert a step
 between two nodes, swap adjacent steps, change a node's shape, restyle an edge,
@@ -225,6 +227,15 @@ The available handles:
     combined `PK, FK`, so the key picker omits them (mermaid.js renders `UK`; this
     is purely a grammar limitation).
   - **Aliases** (`CUSTOMER["Customer record"]`) remain out of scope.
+
+## Development
+
+The tests run headless against the plugin in the current checkout and need the
+`mermaid` parser. `make parser` builds it without nvim-treesitter.
+
+```sh
+make test
+```
 
 ## License
 
