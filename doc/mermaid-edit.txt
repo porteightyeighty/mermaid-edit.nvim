@@ -27,6 +27,9 @@ reshape and remove steps in a flowchart, and to change relationships,
 attributes and entity names in an ER diagram.
 
 
+https://github.com/user-attachments/assets/27e4800c-fa87-4215-99ef-9c832fef5b9a
+
+
 WHY                                       *mermaid-edit-mermaid-edit.nvim-why*
 
 In a flowchart, the connections between steps are node IDs repeated across
