@@ -1,3 +1,4 @@
+
 # mermaid-edit.nvim
 
 [![Test](https://github.com/porteightyeighty/mermaid-edit.nvim/actions/workflows/test.yml/badge.svg)](https://github.com/porteightyeighty/mermaid-edit.nvim/actions/workflows/test.yml)
@@ -6,7 +7,7 @@ A Neovim plugin for editing the structure of [Mermaid](https://mermaid.js.org/) 
 diagrams. It uses the tree-sitter parse tree to insert, swap, reshape and remove steps in a
 flowchart, and to change relationships, attributes and entity names in an ER diagram.
 
-<!-- demo video -->
+https://github.com/user-attachments/assets/27e4800c-fa87-4215-99ef-9c832fef5b9a
 
 ## Why
 
