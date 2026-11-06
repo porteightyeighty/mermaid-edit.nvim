@@ -1,120 +1,304 @@
-*mermaid-edit.txt*    Treesitter-assisted structural edits for mermaid flowcharts
+*mermaid-edit.txt*
+                           For Neovim >= 0.10    Last change: 2026 November 06
 
 ==============================================================================
-CONTENTS                                                  *mermaid-edit-contents*
+Table of Contents                             *mermaid-edit-table-of-contents*
 
-  1. Introduction ......................... |mermaid-edit-introduction|
-  2. Requirements ......................... |mermaid-edit-requirements|
-  3. Setup ................................ |mermaid-edit-setup|
-  4. Commands ............................. |mermaid-edit-commands|
-  5. Mappings ............................. |mermaid-edit-mappings|
-  6. Limitations .......................... |mermaid-edit-limitations|
-
-==============================================================================
-1. INTRODUCTION                                       *mermaid-edit-introduction*
-
-mermaid-edit.nvim performs structural edits on mermaid flowcharts using the
-tree-sitter parse tree: insert a step between two nodes, swap adjacent steps,
-change a node's shape, restyle an edge, and label edges. It rewrites the shared
-node ids that connect a linear chart so the chain stays intact.
+1. mermaid-edit.nvim                          |mermaid-edit-mermaid-edit.nvim|
+  - Why                                   |mermaid-edit-mermaid-edit.nvim-why|
+  - Requirements                 |mermaid-edit-mermaid-edit.nvim-requirements|
+  - Install                           |mermaid-edit-mermaid-edit.nvim-install|
+  - Usage                               |mermaid-edit-mermaid-edit.nvim-usage|
+  - Configuration               |mermaid-edit-mermaid-edit.nvim-configuration|
+  - Limitations                   |mermaid-edit-mermaid-edit.nvim-limitations|
+  - Development                   |mermaid-edit-mermaid-edit.nvim-development|
+  - License                           |mermaid-edit-mermaid-edit.nvim-license|
+2. Links                                                  |mermaid-edit-links|
 
 ==============================================================================
-2. REQUIREMENTS                                       *mermaid-edit-requirements*
+1. mermaid-edit.nvim                          *mermaid-edit-mermaid-edit.nvim*
+
+
+<https://github.com/porteightyeighty/mermaid-edit.nvim/actions/workflows/test.yml>
+
+Treesitter-assisted structural edits for mermaid <https://mermaid.js.org/>
+**flowcharts** and **erDiagrams** in Neovim. On a flowchart: insert a step
+between two nodes, swap adjacent steps, change a node’s shape, restyle an
+edge, and label edges - without hand-rewriting the shared node ids that hold a
+linear chart together. On an erDiagram: change a relationship’s cardinality,
+edit its role, manage an entity’s attributes, and rename an entity across
+every line at once.
+
+Other mermaid plugins render, preview, or lint. This one _edits structure_. The
+same keymaps work on both diagram kinds: each action detects whether the cursor
+is in a flowchart or an erDiagram and does the right thing.
+
+
+WHY                                       *mermaid-edit-mermaid-edit.nvim-why*
+
+In a flowchart the connectivity lives in node ids shared across adjacent lines:
+
+>mermaid
+    flowchart LR
+      start([Start]) --> login[Log in]
+      login --> browse[Browse jobs]
+      browse --> done([Done])
+<
+
+Inserting a step between `login` and `browse`, or swapping two steps, means
+rewriting those ids by hand so the chain doesn’t break. `mermaid-edit` does
+it from the parse tree.
+
+
+REQUIREMENTS                     *mermaid-edit-mermaid-edit.nvim-requirements*
 
 - Neovim 0.10+
-- The `mermaid` tree-sitter parser (e.g. `:TSInstall mermaid`).
+- The `mermaid` tree-sitter parser (e.g. `:TSInstall mermaid` via
+    nvim-treesitter <https://github.com/nvim-treesitter/nvim-treesitter>)
 
-Run `:checkhealth mermaid-edit`.
+Run `:checkhealth mermaid-edit` to verify.
 
-==============================================================================
-3. SETUP                                                     *mermaid-edit-setup*
 
-                                                          *mermaid-edit.setup()*
+INSTALL                               *mermaid-edit-mermaid-edit.nvim-install*
+
+With lazy.nvim <https://github.com/folke/lazy.nvim>:
+
+>lua
+    {
+      "porteightyeighty/mermaid-edit.nvim",
+      ft = "mermaid",
+      opts = {},
+    }
+<
+
+
+USAGE                                   *mermaid-edit-mermaid-edit.nvim-usage*
+
+Each keymap carries a flowchart meaning and an erDiagram meaning; the action
+detects the diagram kind under the cursor and routes accordingly.
+
+  -------------------------------------------------------------------------------------
+  Default map  Command              Flowchart action           erDiagram action
+  ------------ -------------------- -------------------------- ------------------------
+  <leader>mi   :MermaidInsertStep   Insert a new step between  Add an attribute to the
+                                    the two nodes              entity block
+
+  <leader>mo   :MermaidAddStep      Add a step after the node  Add a relationship line
+                                    (a new branch)
+
+  <leader>mj   :MermaidSwapDown     Swap this step with the    Move the attribute down
+                                    next one                   within its block
+
+  <leader>mk   :MermaidSwapUp       Swap this step with the    Move the attribute up
+                                    previous one               within its block
+
+  <leader>ms   :MermaidShape        Change the shape of the    Change the attribute key
+                                    node                       (none/PK/FK)
+
+  <leader>ma   :MermaidArrow        Change the edge’s arrow    Change the
+                                    style                      relationship’s
+                                                               cardinality
+
+  <leader>ml   :MermaidLabel        Add, edit, or remove the   Edit the relationship’s
+                                    edge’s label               role
+
+  <leader>md   :MermaidRemove       Remove the node, bridge    Remove the attribute or
+                                    the gap                    relationship
+
+  <leader>mr   :MermaidRename       -                          Rename the entity
+                                                               everywhere it appears
+
+  -            :MermaidAttrType     -                          Change the attribute’s
+                                                               type
+  -------------------------------------------------------------------------------------
+
+FLOWCHARTS ~
+
+Put the cursor on an edge line (`SRC --> TGT[label]`).
+
+- **Insert** prompts for a label, derives a unique snake_case id, and gives the
+    new node the same shape as the edge’s target.
+- **Add step** appends a new node after the node under the cursor as a fresh
+    outgoing edge. On a terminal node it extends the chain; on a node that already
+    has a successor it forks off a new branch that does not auto-connect to
+    anything downstream. The arrow reuses the node’s incoming style.
+- **Swap** trades the positions of two adjacent steps by transposing their ids
+    across the whole diagram, so every edge into or out of either node follows it
+    and the chain stays connected - including fan-in and fan-out. Each node keeps
+    its own label.
+- **Change shape** rewraps the label in a shape you pick, leaving the label text
+    (including `<br>`) untouched.
+- **Change arrow** restyles the edge under the cursor (`-->`, `---`, `-.->`,
+    `==>`, `--o`, `--x`, `<-->`, …) from a picker, keeping any edge label.
+- **Edit label** adds or changes the edge’s label (`A -->|label| B`); submitting
+    an empty label removes it. A `-- label -->` mid-edge label is normalised to the
+    `|label|` form. On a chained one-liner both arrow and label operations act on
+    the transition under the cursor.
+- **Remove** deletes the node under the cursor and bridges the gap: each
+    predecessor is reconnected to each successor (`P --> X --> Q` becomes
+    `P --> Q`), so the chain stays connected. On a one-liner or `&` branch the
+    node is spliced out in place.
+
+
+ERDIAGRAMS ~
+
+Put the cursor on a relationship line (`CUSTOMER ||--o{ ORDER : places`) or
+inside an entity attribute block.
+
+>mermaid
+    erDiagram
+      CUSTOMER ||--o{ ORDER : places
+      CUSTOMER {
+        string name PK
+        int age
+      }
+<
+
+- **Change cardinality** (`<leader>ma`) restyles the relationship from a picker:
+    pick the left cardinality, the line type (identifying `--` / non-identifying
+    `..`), and the right cardinality in turn (each prefilled with the current
+    value), keeping both entities and the role.
+- **Edit role** (`<leader>ml`) sets the relationship’s `: role` verb. A role with
+    spaces is auto-quoted (`: "places order for"`) so it parses; the prompt shows
+    it unquoted. Every relationship must have a role, so an empty role is refused.
+- **Change attribute key** (`<leader>ms`) sets or clears the `PK`/`FK` constraint
+    on the attribute under the cursor.
+- **Change attribute type** (`:MermaidAttrType`) swaps the attribute’s type word,
+    keeping its name, key, and comment.
+- **Add attribute** (`<leader>mi`) prompts for a type and name and appends a new
+    attribute to the entity block under the cursor.
+- **Add relationship** (`<leader>mo`) prompts for the two entities and a role and
+    inserts a new relationship line.
+- **Move attribute** (`<leader>mj` / `<leader>mk`) reorders the attribute up or
+    down within its block.
+- **Remove** (`<leader>md`) deletes the attribute under the cursor, or - on a
+    relationship line - the whole relationship.
+- **Rename entity** (`<leader>mr`) renames the entity under the cursor _across every relationship line and its attribute-block header at once_ - the same
+    shared-name threading the flowchart engine does for node ids. An exact-name
+    match means `ORDER` is renamed without touching `ORDER_LINE`.
+
+
+CONFIGURATION                   *mermaid-edit-mermaid-edit.nvim-configuration*
+
 >lua
     require("mermaid-edit").setup({
-      keymaps = {
-        insert_step  = "<leader>mi",
-        add_step     = "<leader>mo",
-        swap_down    = "<leader>mj",
-        swap_up      = "<leader>mk",
-        change_shape = "<leader>ms",
-        change_arrow = "<leader>ma",
-        edit_label   = "<leader>ml",
-        remove_node  = "<leader>md",
+      keymaps = {                  -- buffer-local; set an entry or the table to false to disable
+        insert_step   = "<leader>mi",
+        add_step      = "<leader>mo",
+        swap_down     = "<leader>mj",
+        swap_up       = "<leader>mk",
+        change_shape  = "<leader>ms",
+        change_arrow  = "<leader>ma",
+        edit_label    = "<leader>ml",
+        remove_node   = "<leader>md",
+        rename_entity = "<leader>mr",  -- erDiagram only
       },
-      default_shape = "square",
+      default_shape    = "square",      -- shape for a new flowchart node when the edge target is a bare id
+      default_relation = "||--o{",      -- marker for a newly added erDiagram relationship
+      default_attr_type = "string",     -- type prefilled when adding an erDiagram attribute
     })
 <
-Set any keymap entry, or `keymaps` itself, to `false` to disable. With
-lazy.nvim, `opts = {}` calls setup for you.
+
+The `:Mermaid*` commands always work regardless of keymaps.
+
+
+OVERRIDING KEYMAPS ~
+
+The default maps are buffer-local (they attach only to `mermaid` buffers, via
+`ftplugin/mermaid.lua`) and point at `<Plug>` handles, so there are three ways
+to rebind them, in increasing order of control:
+
+1. **Remap or disable a key** in `setup()` - set an entry to a new `lhs`, or to
+`false` to drop just that one; set `keymaps = false` to drop them all:
+
+>lua
+    require("mermaid-edit").setup({
+      keymaps = { insert_step = "<leader>I", remove_node = false },
+    })
+<
+
+
+2. **Map the <Plug> handles yourself.** Disable the defaults and wire your own
+keys to the stable handles - the canonical Vim idiom:
+
+>lua
+    require("mermaid-edit").setup({ keymaps = false })
+    -- in after/ftplugin/mermaid.lua:
+    vim.keymap.set("n", "<leader>I", "<Plug>(mermaid-insert-step)", { buffer = true })
+<
+
+
+3. **Just shadow a key** in your own `after/ftplugin/mermaid.lua`. The defaults
+skip any key you have already mapped, so your binding always wins - no need to
+disable anything.
+
+
+
+The available handles:
+
+  <Plug> handle                 Action
+  ----------------------------- ------------------------------------
+  <Plug>(mermaid-insert-step)   insert step / add attribute
+  <Plug>(mermaid-add-step)      add step / add relationship
+  <Plug>(mermaid-swap-down)     move step / attribute down
+  <Plug>(mermaid-swap-up)       move step / attribute up
+  <Plug>(mermaid-shape)         change shape / attribute key
+  <Plug>(mermaid-arrow)         change arrow / cardinality
+  <Plug>(mermaid-label)         edit edge label / role
+  <Plug>(mermaid-remove)        remove node / attribute / relation
+  <Plug>(mermaid-rename)        rename entity (erDiagram)
+  <Plug>(mermaid-attr-type)     change attribute type (erDiagram)
+
+LIMITATIONS                       *mermaid-edit-mermaid-edit.nvim-limitations*
+
+- **All flowchart connectivity styles** are handled: one edge per line
+    (`SRC <arrow> TGT[label]`, threaded through shared ids), chained one-liners
+    (`A --> B --> C`, ordered positionally), and `&` branching - both fan-out
+    (`A --> B & C`) and fan-in (`A & B --> C`). Multi-line branches (a node with
+    several incoming or outgoing edges) stay connected through a swap because the
+    whole diagram is re-threaded by id, and the connecting edge is found by id
+    rather than by line adjacency. On a one-liner or `&` line, swap reorders in
+    place (an `&` sibling, else the adjacent group) and insert splices a node into
+    the transition under the cursor. Reshaping reaches any vertex, including one
+    inside an `&` group. **Subgraphs** remain out of scope.
+- **Write parseable mermaid.** A few constructs are valid mermaid that the
+    tree-sitter grammar still errors on, and `mermaid-edit` refuses to edit a tree
+    with errors:
+    - Use `<br>`, not `<br/>` - the self-closing slash collides with slanted-shape
+        closers like `/]`. `<br>` renders identically.
+    - Use the dotted _arrow_ `-.->`, not the dotted _open_ link `-.-` - the grammar
+        can’t parse `-.-`, so the arrow picker omits it. If a diagram already
+        contains a `-.-`, change it to `-.->` by hand once and editing works again.
+- **erDiagrams** edit relationships and entity attribute blocks; what the grammar
+    parses bounds what is offered:
+    - Every relationship needs a `: role` label, and each attribute must sit on its
+        own line inside the `{ }` block - both are required for the diagram to parse,
+        so the editor refuses to operate on one that omits them.
+    - Attribute keys are limited to `PK` and `FK`. The grammar rejects `UK` and a
+        combined `PK, FK`, so the key picker omits them (mermaid.js renders `UK`; this
+        is purely a grammar limitation).
+    - **Aliases** (`CUSTOMER["Customer record"]`) remain out of scope.
+
+
+DEVELOPMENT                       *mermaid-edit-mermaid-edit.nvim-development*
+
+The tests run headless against the plugin in the current checkout and need the
+`mermaid` parser. `make parser` builds it without nvim-treesitter.
+
+>sh
+    make test
+<
+
+
+LICENSE                               *mermaid-edit-mermaid-edit.nvim-license*
+
+MIT
 
 ==============================================================================
-4. COMMANDS                                               *mermaid-edit-commands*
+2. Links                                                  *mermaid-edit-links*
 
-:MermaidInsertStep              Insert a new step between the two nodes on the
-                                edge under the cursor. Prompts for a label.
+1. *Test*: https://github.com/porteightyeighty/mermaid-edit.nvim/actions/workflows/test.yml/badge.svg
 
-:MermaidAddStep                 Add a step after the node under the cursor as a
-                                new outgoing edge. On a terminal node it extends
-                                the chain; on a node that already has a successor
-                                it forks off a new branch. Prompts for a label.
+Generated by panvimdoc <https://github.com/kdheepak/panvimdoc>
 
-:MermaidSwapDown                Swap the step on this line with the next step.
-
-:MermaidSwapUp                  Swap the step on this line with the previous
-                                step.
-
-:MermaidShape                   Change the shape of the node under the cursor
-                                (pick from a list).
-
-:MermaidArrow                   Change the arrow style of the edge under the
-                                cursor (pick from a list, e.g. -->, ---, -.->,
-                                ==>, --o, --x). Any edge label is kept.
-
-:MermaidLabel                   Add, edit, or remove the label on the edge under
-                                the cursor (`A -->|label| B`). The prompt is
-                                prefilled with the current label; submitting an
-                                empty label removes it.
-
-:MermaidRemove                  Remove the node under the cursor and bridge the
-                                gap: each predecessor is reconnected to each
-                                successor so the chain stays connected. On a
-                                one-liner or `&` branch the node is spliced out
-                                in place.
-
-The commands always work regardless of the keymap configuration.
-
-==============================================================================
-5. MAPPINGS                                               *mermaid-edit-mappings*
-
-Buffer-local in `mermaid` buffers (defaults):
-
-  <leader>mi      :MermaidInsertStep
-  <leader>mo      :MermaidAddStep
-  <leader>mj      :MermaidSwapDown
-  <leader>mk      :MermaidSwapUp
-  <leader>ms      :MermaidShape
-  <leader>ma      :MermaidArrow
-  <leader>ml      :MermaidLabel
-  <leader>md      :MermaidRemove
-
-==============================================================================
-6. LIMITATIONS                                         *mermaid-edit-limitations*
-
-- All flowchart connectivity is handled: one edge per line
-  (`SRC <arrow> TGT[label]`), chained one-liners (`A --> B --> C`), and `&`
-  branching - fan-out (`A --> B & C`) and fan-in (`A & B --> C`). Multi-line
-  branches stay connected through a swap because the diagram is re-threaded by id
-  and the connecting edge is located by id, not adjacency. On a one-liner or `&`
-  line, swap reorders in place and insert splices into the transition under the
-  cursor; reshape reaches any vertex, including inside an `&` group. Subgraphs
-  are out of scope.
-- Write parseable mermaid. A few constructs are valid mermaid that the grammar
-  still errors on, and mermaid-edit refuses to edit a tree with errors:
-  - Use `<br>`, not `<br/>` (the self-closing slash makes the grammar error;
-    `<br>` renders identically).
-  - Use the dotted arrow `-.->`, not the dotted open link `-.-` (the grammar
-    can't parse `-.-`, so the arrow picker omits it). Fix an existing `-.-` to
-    `-.->` by hand once and editing works again.
-
-vim:tw=78:ts=8:ft=help:norl:
+vim:tw=78:ts=8:noet:ft=help:norl:
