@@ -2,3 +2,5 @@ doc/tags
 *.swp
 .DS_Store
 .grammar/
+demo/demo.gif
+demo/demo.mp4
